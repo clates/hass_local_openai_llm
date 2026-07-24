@@ -112,4 +112,14 @@ class LocalAiConversationEntity(LocalAiEntity, conversation.ConversationEntity):
             parallel_tool_calls=parallel_tool_calls,
         )
 
-        return conversation.async_get_result_from_chat_log(user_input, chat_log)
+        result = conversation.async_get_result_from_chat_log(user_input, chat_log)
+
+        # Pinecone fork: drive Home Assistant's continue-conversation (hands-free
+        # follow-up without re-waking) from whether the agent actually spoke.
+        # The Pinecone brain answers when addressed (keep the mic open) and returns
+        # an empty response when the speech wasn't directed at it (stand down and
+        # await the wake word again).
+        speech = (result.response.speech.get("plain") or {}).get("speech", "")
+        result.continue_conversation = bool(isinstance(speech, str) and speech.strip())
+
+        return result
